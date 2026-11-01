@@ -1,0 +1,12 @@
+{
+  "name": "kartli-okey",
+  "version": "1.0.0",
+  "description": "Kartlı Okey: iskambil kartlarıyla okey, bilgisayara karşı ve online",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
