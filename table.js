@@ -8,9 +8,10 @@ const TURN_LIMIT = +process.env.OKEY_TURN_LIMIT || 45000;   // hamle süresi (ms
 const AWAY_DELAY = +process.env.OKEY_AWAY_DELAY || 1500;    // kopan oyuncunun yerine oynamadan önce bekleme (ms)
 
 class Table {
-  constructor({ code, N, handLimit, onChange }) {
+  constructor({ code, N, handLimit, teams, onChange }) {
     this.code = code;
     this.N = N;
+    this.teams = !!teams && N === 4;   // eşli: karşılıklı oturanlar (0-2, 1-3) eş
     this.handLimit = handLimit;
     this.onChange = onChange || (() => {});
     this.seats = new Array(N).fill(null);   // {token, name, connected, left}
@@ -281,6 +282,7 @@ class Table {
       if (biter > 1) notes.push(`${biter} biter`);
       this.pts[winner] += -100 * biter; why[winner] = 'bitti';
       for (let k = 0; k < N; k++) if (k !== winner) {
+        if (this.teams && k === (winner + 2) % 4) { why[k] = 'eşi bitti'; continue; }
         const cs = E.wentCift(R.hands[k]); const cg = cs !== null || R.ciftGo[k];
         const sum = cs !== null ? cs : (cg ? E.ciftSumAny(R.hands[k]) : E.leftover(R.hands[k]));
         const f = factor * (cg ? 2 : 1);
@@ -319,7 +321,7 @@ class Table {
   viewFor(seat) {
     const R = this.R;
     const v = {
-      code: this.code, N: this.N, handLimit: this.handLimit, handNo: this.handNo,
+      code: this.code, N: this.N, teams: this.teams, handLimit: this.handLimit, handNo: this.handNo,
       phase: this.phase, you: seat, isHost: seat >= 0 && this.seats[seat] && this.seats[seat].token === this.hostToken,
       msg: this.msg, pts: this.pts.slice(),
       seats: this.seats.map((s, i) => s ? {

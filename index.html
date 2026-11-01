@@ -353,6 +353,10 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <option value="11">11 el</option>
         <option value="0">Sınırsız</option>
       </select></label>
+        <label>Tür <select id="mSel">
+        <option value="tekli" selected>Tekli</option>
+        <option value="esli">Eşli</option>
+      </select></label>
       </div>
       <button class="btn primary big" id="playBtn">Oyuna gir</button>
       <button class="btn big" id="contBtn" hidden>Oyuna devam et</button>
@@ -377,6 +381,11 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
             <button type="button" class="btn" data-n="2" aria-pressed="false">2 kişi</button>
             <button type="button" class="btn" data-n="3" aria-pressed="false">3 kişi</button>
             <button type="button" class="btn" data-n="4" aria-pressed="true">4 kişi</button>
+          </div></div>
+        <div class="fld-row"><span class="fld-l">Oyun türü</span>
+          <div class="seg-ctl" id="olT">
+            <button type="button" class="btn" data-t="0" aria-pressed="true">Tekli</button>
+            <button type="button" class="btn" data-t="1" aria-pressed="false">Eşli</button>
           </div></div>
         <label class="fld" for="olH">El sayısı
           <select id="olH" class="txt"><option value="5">5 el</option><option value="7" selected>7 el</option><option value="11">11 el</option><option value="0">Sınırsız</option></select></label>
@@ -476,6 +485,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <li><b>Çifte gitmek:</b> <b>Çifte git</b> düğmesine bastıysan ya da el bittiğinde elinde en az bir per ve 4 çift veya 5 çift varsa çifte gitmiş sayılırsın. Eşi olmayan kartların toplanır ve cezan ayrıca 2 ile çarpılır.</li>
         <li><b>Gösterge:</b> ortada açılan kartın aynısı elindeyse, yerden kart çekmeden önce “Göstergeyi göster”e basabilirsin. Kartın değerinin 10 katı kadar ödül alırsın (sinek 8 ise hanene −80 yazılır). Kart çektikten sonra hakkın gider.</li>
         <li><b>Online:</b> masa kurulup 2, 3 ya da 4 kişi dolunca oyun başlar. Her hamle için 45 saniye süre vardır. Süresi dolan ya da bağlantısı kopan oyuncunun yerine bilgisayar oynar ve koltuğunda bot simgesi görünür. Oyuncu geri dönünce koltuğuna oturur.</li>
+        <li><b>Eşli oyun:</b> 4 kişiyle oynanır, karşılıklı oturanlar eştir. Biten tarafa teklideki gibi biter yazılır, bitirenin eşine ceza yazılmaz. Diğer taraftaki iki oyuncunun elleri teklideki gibi hesaplanıp toplanır.</li>
         <li>Seçilen el sayısı bitince en düşük toplamı olan kazanır. Deste biterse el berabere biter, kimseye yazılmaz.</li>
         <li>Kart atmak için atmak istediğin karta <b>çift tıkla</b>. Elin bitse bile kart atınca oyun devam eder; okeye dönmek istersen bekleyebilirsin. Bitmek için atacağın kartı seç ve <b>Bit</b> düğmesine bas.</li>
         <li>Kartları istediğin gibi dizmek için kartı tut ve sürükle. Sürüklediğin kart yarı saydam görünür, bırakacağın yer sarı çizgiyle işaretlenir. Kartı “Senin attığın” alanına sürüklersen atılır.</li>
@@ -525,7 +535,7 @@ const MULT=[3,5,4,6]; // maça, kupa, karo, sinek
 const cardVal=r=>(r===1||r>=11)?10:r;
 const RL=r=>({1:'A',11:'J',12:'Q',13:'K'}[r]||String(r));
 
-let N=4, NAMES=SEATS[4];
+let N=4, NAMES=SEATS[4], TEAMS=false;
 let paused=false, pendingAI=null;
 let S=null, pts=[], starter=0, gameOver=false, handNo=0, handLimit=7;
 let memoWin=new Map(), memoBest=new Map();
@@ -900,6 +910,8 @@ function arrangeAfterDraw(newIds){
 
 /* ---------- oyun akışı ---------- */
 function newGame(){
+  TEAMS=document.getElementById('mSel').value==='esli';
+  if(TEAMS) document.getElementById('nSel').value='4';
   N=+document.getElementById('nSel').value; NAMES=SEATS[N];
   handLimit=+document.getElementById('hSel').value;
   pts=new Array(N).fill(0); starter=0; gameOver=false; handNo=0;
@@ -1053,6 +1065,7 @@ function endRound(winner,lastCard){
     const win=-100*biter;
     pts[winner]+=win; why[winner]='bitti';
     for(let k=0;k<N;k++) if(k!==winner){
+      if(TEAMS && k===(winner+2)%4){ why[k]='eşi bitti'; continue; }
       const cs=wentCift(S.hands[k]); const cg=cs!==null||S.ciftGo[k];
       const sum=cs!==null?cs:(cg?ciftSumAny(S.hands[k]):leftover(S.hands[k]));
       const f=factor*(cg?2:1);
@@ -1075,13 +1088,9 @@ function endRound(winner,lastCard){
     const {groups}=arrange(S.hands[winner]);
     html+=`<p class="help" style="margin:0 0 10px">Son atılan: ${cname(lastCard)}${detail} · Okey: ${SUITS[S.okey.s]}${RL(S.okey.r)}</p><div class="melds">${groups.map(g=>`<div class="meld">${g.cards.map(c=>cardHTML(c)).join('')}</div>`).join('')}</div>`;
   }
-  const fmt=v=>v<0?'−'+(-v):String(v);
-  html+=`<table class="sc" style="margin-top:14px"><tr><th>Oyuncu</th><th>Hesap</th><th>Bu el</th><th>Toplam</th></tr>${
-    NAMES.map((n,k)=>{const d=pts[k]-before[k]; return `<tr><td>${n}</td><td class="zero">${why[k]}</td><td class="${d<0?'good':d>0?'neg':'zero'}">${fmt(d)}</td><td><b>${fmt(pts[k])}</b></td></tr>`;}).join('')
-  }</table>`;
+  html+=scoreTableHTML(NAMES, why, pts.map((p,k)=>p-before[k]), pts, TEAMS);
   if(gameOver){
-    const min=Math.min(...pts); const champs=NAMES.filter((_,k)=>pts[k]===min);
-    t.textContent= champs.length===1 ? (champs[0]==='Sen'?'Oyunu sen kazandın!':`Oyunu ${champs[0]} kazandı.`) : `Oyun bitti: ${champs.join(' ve ')} berabere.`;
+    t.textContent=championText(NAMES, pts, TEAMS);
     html=`<p class="help" style="margin:0 0 6px">${handLimit} el oynandı, en düşük toplam kazanır.</p>`+html;
   }
   b.innerHTML=html;
@@ -1089,6 +1098,28 @@ function endRound(winner,lastCard){
   again.textContent=gameOver?'Yeni oyun başlat':'Yeni el dağıt';
   document.getElementById('overlay').hidden=false;
   again.focus();
+}
+
+/* puan tablosu: tekli oyunda oyuncu başına, eşlide taraf başına (0&2, 1&3) */
+function scoreTableHTML(names, why, delta, totals, teams){
+  const fmt=v=>v<0?'−'+(-v):String(v);
+  const rows = teams
+    ? [[0,2],[1,3]].map(([a,b])=>({ name:`${names[a]} & ${names[b]}`,
+        why:[why[a]?`${names[a]}: ${why[a]}`:'', why[b]?`${names[b]}: ${why[b]}`:''].filter(Boolean).join(' · '),
+        d:delta[a]+delta[b], total:totals[a]+totals[b] }))
+    : names.map((n,k)=>({ name:n, why:why[k], d:delta[k], total:totals[k] }));
+  return `<table class="sc" style="margin-top:14px"><tr><th>${teams?'Taraf':'Oyuncu'}</th><th>Hesap</th><th>Bu el</th><th>Toplam</th></tr>${
+    rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="zero">${esc(r.why)}</td><td class="${r.d<0?'good':r.d>0?'neg':'zero'}">${fmt(r.d)}</td><td><b>${fmt(r.total)}</b></td></tr>`).join('')
+  }</table>`;
+}
+function championText(names, totals, teams){
+  if(teams){
+    const a=totals[0]+totals[2], b=totals[1]+totals[3];
+    if(a===b) return 'Oyun berabere bitti.';
+    return a<b ? (names[0]==='Sen'?'Oyunu sen ve eşin kazandınız!':`Oyunu ${names[0]} ve ${names[2]} kazandı.`) : `Oyunu ${names[1]} ve ${names[3]} kazandı.`;
+  }
+  const min=Math.min(...totals); const champs=names.filter((_,k)=>totals[k]===min);
+  return champs.length===1 ? (champs[0]==='Sen'?'Oyunu sen kazandın!':`Oyunu ${champs[0]} kazandı.`) : `Oyun bitti: ${champs.join(' ve ')} berabere.`;
 }
 
 /* ---------- çizim ---------- */
@@ -1113,7 +1144,7 @@ function render(){
     const away=!!(S.away&&S.away[i]);
     const avTxt=ONLINE_MODE&&i!==0 ? esc(NAMES[i].slice(0,2).toUpperCase()) : esc(NAMES[i]);
     el.innerHTML=`<div class="avatar${S.turn===i?' on':''}${away?' away':''}">${avTxt}${away?`<span class="bot-badge" title="Bağlantısı koptu, bilgisayar oynuyor">${BOT_SVG}</span>`:''}${ONLINE_MODE&&S.turn===i&&OL.deadline?'<span class="tmr" id="tmr"></span>':''}</div>
-      <div class="seat-info">${ONLINE_MODE&&i!==0?`<span class="sname">${esc(NAMES[i])}</span>`:''}<span class="spts">${fmtPts(pts[i])}</span>
+      <div class="seat-info">${ONLINE_MODE&&i!==0?`<span class="sname">${esc(NAMES[i])}</span>`:''}<span class="spts">${TEAMS?fmtPts(pts[i]+pts[(i+2)%4]):fmtPts(pts[i])}</span>${TEAMS?`<span class="scount">${i===0?'senin tarafın':i===2?'eşin':'rakip taraf'}</span>`:''}
       ${i!==0?`<span class="scount"><i class="mini-back"></i>${S.hands[i].length} kart</span>`:'<span class="scount">senin hanen</span>'}
       ${away?'<span class="scount away-t">bilgisayar oynuyor</span>':''}
       ${S.thinking===i?'<span class="dots" aria-label="düşünüyor"><i></i><i></i><i></i></span>':''}</div>`;
@@ -1405,6 +1436,8 @@ function showGame(){
 }
 document.getElementById('playBtn').onclick=()=>{ if(S) S.phase='stop'; pendingAI=null; overlayWasOpen=false; paused=false; newGame(); showGame(); };
 document.getElementById('contBtn').onclick=()=>showGame();
+document.getElementById('mSel').addEventListener('change',e=>{ if(e.target.value==='esli') document.getElementById('nSel').value='4'; });
+document.getElementById('nSel').addEventListener('change',e=>{ if(e.target.value!=='4') document.getElementById('mSel').value='tekli'; });
 document.getElementById('menuBtn').onclick=()=>{ if(ONLINE_MODE) leaveOnlineGame(); else showHome(); };
 document.getElementById('homeTheme').onclick=()=>document.getElementById('themeBtn').click();
 const rulesSheet=document.getElementById('rulesSheet');
@@ -1426,7 +1459,7 @@ const lsSet=(k,v)=>{ try{ v==null?localStorage.removeItem(k):localStorage.setIte
 const OL={ ws:null, connected:false, code:lsGet('okey-online-kod'), view:null, reqId:0, pend:new Map(), want:false, retry:0, deadline:null, resultFor:null,
   token:lsGet('okey-token') || (Math.random().toString(36).slice(2)+Date.now().toString(36)+Math.random().toString(36).slice(2)) };
 lsSet('okey-token',OL.token);
-let olN=4;
+let olN=4, olTeams=false;
 
 function wsUrl(){
   if(ONLINE_SERVER) return /^wss?:\/\//.test(ONLINE_SERVER) ? ONLINE_SERVER : 'wss://'+ONLINE_SERVER.replace(/^https?:\/\//,'').replace(/\/$/,'');
@@ -1500,17 +1533,19 @@ function olRenderLobby(){
   const v=OL.view, inTable=!!(OL.code && v && v.code===OL.code);
   document.getElementById('olEntry').hidden=inTable;
   document.getElementById('olLobby').hidden=!inTable;
+  if(olN!==4) olTeams=false;
   for(const b of document.querySelectorAll('#olN [data-n]')) b.setAttribute('aria-pressed', String(+b.dataset.n===olN));
+  for(const b of document.querySelectorAll('#olT [data-t]')){ b.setAttribute('aria-pressed', String((+b.dataset.t===1)===olTeams)); if(+b.dataset.t===1) b.disabled=olN!==4; }
   if(!inTable) return;
   document.getElementById('olCodeShow').textContent=v.code;
   const link=(/^https?:$/.test(location.protocol)?location.origin+location.pathname:'')+'?masa='+v.code;
   document.getElementById('olLink').value=link;
   document.getElementById('olSeats').innerHTML=v.seats.map((s,i)=> s
-    ? `<li><span class="dot"></span>${esc(s.name)}${i===v.you?' (sen)':''}${s.host?'<span class="tag2">masayı kuran</span>':''}</li>`
-    : `<li class="empty-seat"><span class="dot"></span>Oyuncu bekleniyor…</li>`).join('');
+    ? `<li><span class="dot"></span>${esc(s.name)}${i===v.you?' (sen)':''}${v.teams?` <span class="zero" style="font-weight:600">· ${i%2===0?'1. taraf':'2. taraf'}</span>`:''}${s.host?'<span class="tag2">masayı kuran</span>':''}</li>`
+    : `<li class="empty-seat"><span class="dot"></span>Oyuncu bekleniyor…${v.teams?` · ${i%2===0?'1. taraf':'2. taraf'}`:''}</li>`).join('');
   const empty=v.seats.filter(s=>!s).length;
   document.getElementById('olMsg').textContent= empty
-    ? `${v.N} kişilik masa · ${v.handLimit?v.handLimit+' el':'sınırsız el'}. ${empty} kişi daha gelince oyun başlayabilir.`
+    ? `${v.N} kişilik ${v.teams?'eşli ':''}masa · ${v.handLimit?v.handLimit+' el':'sınırsız el'}. ${empty} kişi daha gelince oyun başlayabilir.${v.teams?' Karşılıklı oturanlar eş olur.':''}`
     : (v.isHost ? 'Masa doldu. Oyunu başlatabilirsin.' : 'Masa doldu. Masayı kuranın oyunu başlatması bekleniyor.');
   const st=document.getElementById('olStart');
   st.hidden=!v.isHost; st.disabled=!!empty;
@@ -1531,7 +1566,7 @@ function olOnState(v){
 function enterOnlineGame(){
   if(!ONLINE_MODE){
     paused=true;
-    offlineCtx={S,N,NAMES,pts,handNo,handLimit,starter,gameOver,overlayOpen:!overlayEl.hidden||overlayWasOpen};
+    offlineCtx={S,N,NAMES,TEAMS,pts,handNo,handLimit,starter,gameOver,overlayOpen:!overlayEl.hidden||overlayWasOpen};
     overlayEl.hidden=true; overlayWasOpen=false;
     ONLINE_MODE=true; S=null;
   }
@@ -1542,8 +1577,8 @@ function enterOnlineGame(){
 function leaveOnlineGame(){
   ONLINE_MODE=false; overlayEl.hidden=true;
   const c=offlineCtx; offlineCtx=null;
-  if(c){ S=c.S; N=c.N; NAMES=c.NAMES; pts=c.pts; handNo=c.handNo; handLimit=c.handLimit; starter=c.starter; gameOver=c.gameOver; }
-  else { S=null; N=4; NAMES=SEATS[4]; pts=[]; gameOver=false; }
+  if(c){ S=c.S; N=c.N; NAMES=c.NAMES; TEAMS=c.TEAMS; pts=c.pts; handNo=c.handNo; handLimit=c.handLimit; starter=c.starter; gameOver=c.gameOver; }
+  else { S=null; N=4; NAMES=SEATS[4]; TEAMS=false; pts=[]; gameOver=false; }
   showHome();
   if(c && c.overlayOpen) overlayWasOpen=true;
 }
@@ -1556,7 +1591,7 @@ function olApply(v){
   N=n;
   NAMES=Array.from({length:n},(_,l)=> l===0?'Sen':v.seats[G(l)].name);
   pts=Array.from({length:n},(_,l)=>v.pts[G(l)]);
-  handNo=v.handNo; handLimit=v.handLimit; gameOver=v.phase==='over';
+  handNo=v.handNo; handLimit=v.handLimit; gameOver=v.phase==='over'; TEAMS=!!v.teams;
   const fresh=!S || !S.online || S.handNo!==v.handNo;
   if(fresh) S={online:true, handNo:v.handNo, sel:null, hint:null, fresh:null, manual:false, breaks:new Set(), segKind:new Map(), forcePair:new Map(), hands:[[]], ciftGo:[false]};
   const ids=new Set(r.hand.map(c=>c.id));
@@ -1600,14 +1635,12 @@ function olShowResult(v){
     html+=`<p class="help" style="margin:0 0 10px">Son atılan: ${res.lastCard?esc(cname(res.lastCard)):''} · ${esc(res.detail)} · Okey: ${SUITS[res.okey.s]}${RL(res.okey.r)}</p>`;
     if(res.groups) html+=`<div class="melds">${res.groups.map(g=>`<div class="meld">${g.map(c=>cardHTML(c)).join('')}</div>`).join('')}</div>`;
   }
-  html+=`<table class="sc" style="margin-top:14px"><tr><th>Oyuncu</th><th>Hesap</th><th>Bu el</th><th>Toplam</th></tr>${
-    Array.from({length:n},(_,l)=>{ const i=G(l), d=res.delta[i];
-      return `<tr><td>${l===0?'Sen':esc(v.seats[i].name)}</td><td class="zero">${esc(res.why[i])}</td><td class="${d<0?'good':d>0?'neg':'zero'}">${fmt(d)}</td><td><b>${fmt(v.pts[i])}</b></td></tr>`; }).join('')
-  }</table><p class="ol-err" id="resErr" style="margin-top:10px"></p>`;
+  const ln=Array.from({length:n},(_,l)=>l===0?'Sen':v.seats[G(l)].name);
+  html+=scoreTableHTML(ln, ln.map((_,l)=>res.why[G(l)]), ln.map((_,l)=>res.delta[G(l)]), ln.map((_,l)=>v.pts[G(l)]), !!v.teams)
+     +`<p class="ol-err" id="resErr" style="margin-top:10px"></p>`;
   const again=document.getElementById('againBtn');
   if(v.phase==='over'){
-    const min=Math.min(...v.pts); const champs=v.seats.map((s,i)=>i).filter(i=>v.pts[i]===min);
-    t.textContent= champs.length===1 ? (champs[0]===you?'Oyunu sen kazandın!':`Oyunu ${v.seats[champs[0]].name} kazandı.`) : 'Oyun berabere bitti.';
+    t.textContent=championText(ln, ln.map((_,l)=>v.pts[G(l)]), !!v.teams);
     html=`<p class="help" style="margin:0 0 6px">${v.handLimit} el oynandı, en düşük toplam kazanır.</p>`+html;
     again.textContent= v.isHost ? 'Yeni oyun başlat' : 'Masayı kuran yeni oyunu başlatacak';
     again.disabled=!v.isHost;
@@ -1630,6 +1663,7 @@ setInterval(()=>{ if(ONLINE_MODE && !gameView.hidden) olTick(); },250);
 document.getElementById('onlineBtn').onclick=()=>openOnline();
 document.getElementById('olBack').onclick=()=>showHome();
 document.getElementById('olN').addEventListener('click',e=>{ const b=e.target.closest('[data-n]'); if(!b) return; olN=+b.dataset.n; olRenderLobby(); });
+document.getElementById('olT').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(!b||b.disabled) return; olTeams=+b.dataset.t===1; if(olTeams) olN=4; olRenderLobby(); });
 document.getElementById('olName').addEventListener('change',e=>lsSet('okey-ad',e.target.value.trim()||null));
 document.getElementById('olCode').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,''); });
 async function olGo(kind){
@@ -1640,7 +1674,7 @@ async function olGo(kind){
   const code=document.getElementById('olCode').value.trim();
   if(kind==='join' && code.length!==4){ err.textContent='Masa kodu 4 harften oluşur.'; return; }
   if(!(await olReady())){ err.textContent='Sunucuya bağlanılamadı. İnternetini kontrol edip tekrar dene.'; return; }
-  const r= kind==='create' ? await olReq('create',{name,N:olN,handLimit:+document.getElementById('olH').value})
+  const r= kind==='create' ? await olReq('create',{name,N:olN,teams:olTeams,handLimit:+document.getElementById('olH').value})
                            : await olReq('join',{name,code});
   if(r.error){ err.textContent=r.error; return; }
   olSetCode(r.code);

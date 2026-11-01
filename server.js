@@ -133,7 +133,7 @@ function handle(c, t, p) {
     const N = [2, 3, 4].includes(+p.N) ? +p.N : 4;
     const handLimit = [0, 5, 7, 11].includes(+p.handLimit) ? +p.handLimit : 7;
     const code = newCode();
-    const table = new Table({ code, N, handLimit, onChange: broadcast });
+    const table = new Table({ code, N, handLimit, teams: !!p.teams && N === 4, onChange: broadcast });
     tables.set(code, table);
     leaveCurrent(c);
     c.code = code;
