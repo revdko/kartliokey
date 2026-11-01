@@ -466,7 +466,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <li>Per: aynı renkten sıralı en az 3 kart (Q‑K‑A olur, K‑A‑2 olmaz) ya da aynı sayıdan farklı renkte 3–4 kart.</li>
         <li><b>Seriden bitmek:</b> 14 kartın hepsi perlerde olmalı.</li>
         <li><b>Çiftten bitmek:</b> kartların hepsi çift olmalı ya da bir per ve kalan kartların hepsi çift olmalı (örneğin 4'lü bir per ve 5 çift).</li>
-        <li><b>Otomatik per</b> açıkken kartlar dağıtılınca ve her kart çektiğinde elin perlere ve çiftlere göre dizilir. Çektiğin kart en sonda ayrı durur. Sonrasında kartlarını istediğin gibi taşıyabilirsin; bir sonraki kart çekişine kadar dizilimine dokunulmaz. Bitirebileceğin an, atman gereken kart yeşil ışıkla işaretlenir.</li>
+        <li><b>Otomatik per</b> açıkken kartlar dağıtılınca elin perlere ve çiftlere göre dizilir. Sonra kartlarını istediğin gibi taşıyabilirsin, senin dizilimin hep korunur. Çektiğin kart yan yana duran kartlarınla per oluyorsa onların yanına oturur, olmuyorsa en sona gelir. Bitirebileceğin an, atman gereken kart yeşil ışıkla işaretlenir.</li>
         <li><b>Çarpan</b> okeyin rengine göre belirlenir: sinek 6, kupa 5, karo 4, maça 3.</li>
         <li>Seriden bitirenin hanesine <b>−100</b> yazılır. Okey atarak biterse çarpan kadar biter alır (örneğin karo okeyle −400).</li>
         <li>Çiftten bitiren çarpan kadar biter alır (karo okeyle −400). Çiftten okey atarak biterse bu da 2 ile çarpılır (−800).</li>
@@ -480,7 +480,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <li>Kart atmak için atmak istediğin karta <b>çift tıkla</b>. Elin bitse bile kart atınca oyun devam eder; okeye dönmek istersen bekleyebilirsin. Bitmek için atacağın kartı seç ve <b>Bit</b> düğmesine bas.</li>
         <li>Kartları istediğin gibi dizmek için kartı tut ve sürükle. Sürüklediğin kart yarı saydam görünür, bırakacağın yer sarı çizgiyle işaretlenir. Kartı “Senin attığın” alanına sürüklersen atılır.</li>
         <li>Kartı sürükleyince yalnızca o kart yer değiştirir, diğer kartların ve perlerin yerinde kalır. Yan yana dizdiğin perler ve çiftler kendiliğinden çerçevelenir.</li>
-        <li>Kartları istediğin gibi dizebilirsin. Yan yana koyduğun perler ve çiftler çerçeveyle gösterilir. Kart çekince yeniden dizilmesini istemiyorsan otomatik peri kapat.</li>
+        <li>Kartları istediğin gibi dizebilirsin. Yan yana koyduğun perler ve çiftler çerçeveyle gösterilir. </li>
         <li>Okeyi bir kartın tam üzerine sürüklersen (kart yeşil çerçeve alır) o kartla çift olur. Çifte gittiysen Per yap da okeyleri tek kalan en büyük kartlarla çift yapar.</li>
         <li>Tek tıklayıp sonra başka karta tıklayarak da taşıyabilirsin.</li>
       </ul>
@@ -861,18 +861,40 @@ function computeHint(){
   }
 }
 function manualChanged(){ S.manual=true; detectSegments(); computeHint(); }
-/* kart çekilince: eldeki kartları perlere diz, yeni kart(lar) en sonda ayrı dursun */
-function arrangeAfterDraw(newIds){
-  const h=S.hands[0], nw=h.filter(c=>newIds.includes(c.id));
-  if(autoPer){
-    S.hands[0]=h.filter(c=>!newIds.includes(c.id));
-    applySmart();
-    S.hands[0]=[...S.hands[0], ...nw];
-  } else {
-    S.hands[0]=[...h.filter(c=>!newIds.includes(c.id)), ...nw];
-    detectSegments();
+/* kart çekilince: oyuncunun dizilimi olduğu gibi kalır.
+   Çekilen kart yan yana duran kartlarla per oluyorsa onların yanına oturur, olmuyorsa en sona gelir. */
+function placeDrawn(c){
+  const h=S.hands[0].filter(x=>x.id!==c.id);
+  const lowerThan=(c,first)=>first && !isWild(c) && !isWild(first) && eff(c).s===eff(first).s && eff(c).r<eff(first).r && eff(first).r!==1;
+  // 1) çerçeveli bir peri uzatıyorsa
+  const segs=getSegs(h);
+  for(const g of segs){
+    if(g.kind!=='meld') continue;
+    const seg=h.slice(g.a,g.b), first=seg.find(x=>!isWild(x));
+    if(lowerThan(c,first) && isSingleMeld([c,...seg])){ h.splice(g.a,0,c); S.hands[0]=h; return; }
+    if(isSingleMeld([...seg,c])){ h.splice(g.b,0,c); S.hands[0]=h; return; }
+    if(isSingleMeld([c,...seg])){ h.splice(g.a,0,c); S.hands[0]=h; return; }
   }
-  for(const c of nw){ S.segKind.delete(c.id); S.breaks.delete(c.id); }
+  // 2) per olmamış, yan yana duran kartlarla yeni bir per kuruyorsa
+  const inMeld=new Set(); for(const g of segs) if(g.kind==='meld') for(let k=g.a;k<g.b;k++) inMeld.add(k);
+  for(let len=Math.min(12,h.length); len>=2; len--){
+    for(let i=0;i+len<=h.length;i++){
+      let free=true; for(let k=i;k<i+len;k++) if(inMeld.has(k)){ free=false; break; }
+      if(!free) continue;
+      const win=h.slice(i,i+len), first=win.find(x=>!isWild(x));
+      if(!isSingleMeld([...win,c])) continue;
+      if(lowerThan(c,first)) h.splice(i,0,c); else h.splice(i+len,0,c);
+      S.hands[0]=h; return;
+    }
+  }
+  // 3) per olmuyorsa en sona
+  h.push(c); S.hands[0]=h;
+}
+function arrangeAfterDraw(newIds){
+  const nw=S.hands[0].filter(c=>newIds.includes(c.id));
+  S.hands[0]=S.hands[0].filter(c=>!newIds.includes(c.id));
+  for(const c of nw){ S.hands[0].push(c); if(autoPer) placeDrawn(c); }
+  detectSegments();
   computeHint();
 }
 
