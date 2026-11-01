@@ -159,6 +159,7 @@ button.card{cursor:pointer; font-family:var(--f-rank)}
 .card.back{background:repeating-linear-gradient(45deg,var(--back),var(--back) 5px,var(--back-2) 5px,var(--back-2) 10px); border:3px solid var(--card)}
 .card.sel{transform:translateY(-10px); box-shadow:0 10px 16px rgba(0,0,0,.45); outline:2px solid var(--brass)}
 .card.fresh{animation:drop .35s ease-out}
+.card.fresh::before{content:""; position:absolute; inset:-4px; border:2px dashed var(--brass); border-radius:9px; pointer-events:none}
 .card.hint{box-shadow:0 0 0 3px var(--ok), 0 0 14px rgba(134,214,160,.7)}
 .rack button.card{touch-action:none}
 .card.dragging{opacity:.3}
@@ -452,7 +453,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
       </div>
       <div class="grp">
         <button class="btn primary" id="discardBtn">Seçili kartı at</button>
-        <button class="btn go" id="finishBtn">Atıp bitir</button>
+        <button class="btn go" id="finishBtn">Bit</button>
       </div>
     </div>
     <details class="help">
@@ -465,7 +466,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <li>Per: aynı renkten sıralı en az 3 kart (Q‑K‑A olur, K‑A‑2 olmaz) ya da aynı sayıdan farklı renkte 3–4 kart.</li>
         <li><b>Seriden bitmek:</b> 14 kartın hepsi perlerde olmalı.</li>
         <li><b>Çiftten bitmek:</b> kartların hepsi çift olmalı ya da bir per ve kalan kartların hepsi çift olmalı (örneğin 4'lü bir per ve 5 çift).</li>
-        <li><b>Otomatik per</b> açıkken elin her kart çektiğinde kendiliğinden dizilir: önce seri ve grup perleri, sonra çiftler. Çifte gittiysen bir per ve çiftlere göre dizilir. Bitirebileceğin an, atman gereken kart yeşil ışıkla işaretlenir.</li>
+        <li><b>Otomatik per</b> açıkken kartlar dağıtılınca ve her kart çektiğinde elin perlere ve çiftlere göre dizilir. Çektiğin kart en sonda ayrı durur. Sonrasında kartlarını istediğin gibi taşıyabilirsin; bir sonraki kart çekişine kadar dizilimine dokunulmaz. Bitirebileceğin an, atman gereken kart yeşil ışıkla işaretlenir.</li>
         <li><b>Çarpan</b> okeyin rengine göre belirlenir: sinek 6, kupa 5, karo 4, maça 3.</li>
         <li>Seriden bitirenin hanesine <b>−100</b> yazılır. Okey atarak biterse çarpan kadar biter alır (örneğin karo okeyle −400).</li>
         <li>Çiftten bitiren çarpan kadar biter alır (karo okeyle −400). Çiftten okey atarak biterse bu da 2 ile çarpılır (−800).</li>
@@ -476,10 +477,10 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <li><b>Gösterge:</b> ortada açılan kartın aynısı elindeyse, yerden kart çekmeden önce “Göstergeyi göster”e basabilirsin. Kartın değerinin 10 katı kadar ödül alırsın (sinek 8 ise hanene −80 yazılır). Kart çektikten sonra hakkın gider.</li>
         <li><b>Online:</b> masa kurulup 2, 3 ya da 4 kişi dolunca oyun başlar. Her hamle için 45 saniye süre vardır. Süresi dolan ya da bağlantısı kopan oyuncunun yerine bilgisayar oynar ve koltuğunda bot simgesi görünür. Oyuncu geri dönünce koltuğuna oturur.</li>
         <li>Seçilen el sayısı bitince en düşük toplamı olan kazanır. Deste biterse el berabere biter, kimseye yazılmaz.</li>
-        <li>Kart atmak için atmak istediğin karta <b>çift tıkla</b>. O kartı atınca elin bitiyorsa el kendiliğinden bitirilir.</li>
+        <li>Kart atmak için atmak istediğin karta <b>çift tıkla</b>. Elin bitse bile kart atınca oyun devam eder; okeye dönmek istersen bekleyebilirsin. Bitmek için atacağın kartı seç ve <b>Bit</b> düğmesine bas.</li>
         <li>Kartları istediğin gibi dizmek için kartı tut ve sürükle. Sürüklediğin kart yarı saydam görünür, bırakacağın yer sarı çizgiyle işaretlenir. Kartı “Senin attığın” alanına sürüklersen atılır.</li>
         <li>Kartı sürükleyince yalnızca o kart yer değiştirir, diğer kartların ve perlerin yerinde kalır. Yan yana dizdiğin perler ve çiftler kendiliğinden çerçevelenir.</li>
-        <li>Otomatik per açıkken kart sürüklemek onu kapatmaz. Her kart çektiğinde elin yeniden perlere ve çiftlere göre dizilir. Kendi dizilimini korumak istersen otomatik peri kapat.</li>
+        <li>Kartları istediğin gibi dizebilirsin. Yan yana koyduğun perler ve çiftler çerçeveyle gösterilir. Kart çekince yeniden dizilmesini istemiyorsan otomatik peri kapat.</li>
         <li>Okeyi bir kartın tam üzerine sürüklersen (kart yeşil çerçeve alır) o kartla çift olur. Çifte gittiysen Per yap da okeyleri tek kalan en büyük kartlarla çift yapar.</li>
         <li>Tek tıklayıp sonra başka karta tıklayarak da taşıyabilirsin.</li>
       </ul>
@@ -860,6 +861,20 @@ function computeHint(){
   }
 }
 function manualChanged(){ S.manual=true; detectSegments(); computeHint(); }
+/* kart çekilince: eldeki kartları perlere diz, yeni kart(lar) en sonda ayrı dursun */
+function arrangeAfterDraw(newIds){
+  const h=S.hands[0], nw=h.filter(c=>newIds.includes(c.id));
+  if(autoPer){
+    S.hands[0]=h.filter(c=>!newIds.includes(c.id));
+    applySmart();
+    S.hands[0]=[...S.hands[0], ...nw];
+  } else {
+    S.hands[0]=[...h.filter(c=>!newIds.includes(c.id)), ...nw];
+    detectSegments();
+  }
+  for(const c of nw){ S.segKind.delete(c.id); S.breaks.delete(c.id); }
+  computeHint();
+}
 
 /* ---------- oyun akışı ---------- */
 function newGame(){
@@ -971,9 +986,8 @@ function humanDraw(fromPile){
   else { if(!S.deck.length) return; c=S.deck.pop(); }
   S.firstTurn[0]=false;
   S.hands[0].push(c); S.fresh=c.id; S.phase='discard'; S.sel=null;
-  if(autoPer) applySmart();
-  else { detectSegments(); computeHint(); }
-  S.msg=`${cname(c)} çektin. Atmak istediğin karta çift tıkla.`;
+  arrangeAfterDraw([c.id]);
+  S.msg=`${cname(c)} çektin, en sona eklendi. Atmak istediğin karta çift tıkla.`;
   render();
 }
 function humanShow(){
@@ -991,9 +1005,9 @@ function humanDiscard(finish){
   const hand=S.hands[0]; const k=hand.findIndex(c=>c.id===pick); if(k<0) return;
   const rest=hand.filter((_,j)=>j!==k);
   if(finish && !canWin(rest)){ S.msg='<b>Bu kartı atınca el bitmiyor.</b> Perlerini kontrol et.'; render(); return; }
-  if(ONLINE_MODE){ S.sel=null; S.hint=null; olAct({type:'discard',cardId:pick,finish:!!finish||canWin(rest)}); return; }
+  if(ONLINE_MODE){ S.sel=null; S.hint=null; olAct({type:'discard',cardId:pick,finish:!!finish}); return; }
   const d=hand[k]; S.hands[0]=rest; S.discards[0].push(d); S.sel=null; S.hint=null; S.fresh=null;
-  if(!finish){ if(autoPer && !S.manual) applySmart(); else detectSegments(); }
+  if(!finish) detectSegments();
   if(finish){ endRound(0,d); return; }
   S.msg=`${cname(d)} attın.`;
   S.phase='wait';
@@ -1196,7 +1210,7 @@ function endDrag(e,cancel){
   const h=S.hands[0];
   if(t.pile){
     S.sel=d.id; lastTap={id:null,t:0};
-    humanDiscard(canWin(h.filter(c=>c.id!==d.id)));
+    humanDiscard(false);
     if(!S.over) render();
     return;
   }
@@ -1228,7 +1242,7 @@ rackEl.addEventListener('click',e=>{
     // çift tıklama: kartı at; bu kartla el bitiyorsa bitir
     lastTap={id:null,t:0};
     S.sel=id;
-    humanDiscard(canWin(h.filter(c=>c.id!==id)));
+    humanDiscard(false);
     return;
   }
   if(dbl){ lastTap={id:null,t:0}; }
@@ -1540,7 +1554,7 @@ function olApply(v){
   if(fresh){ if(autoPer) applySmart(); else { S.hands[0].sort(cmpRun); detectSegments(); } }
   else if(added.length){
     if(r.lastDrawn!=null && added.some(c=>c.id===r.lastDrawn)) S.fresh=r.lastDrawn;
-    if(autoPer) applySmart(); else { detectSegments(); computeHint(); }
+    arrangeAfterDraw(added.map(c=>c.id));
   } else if(removed) detectSegments();
   if(S.phase!=='discard') S.hint=null; else if(!added.length) computeHint();
   let msg=esc(v.msg);
