@@ -245,6 +245,16 @@ button.card{cursor:pointer; font-family:var(--f-rank)}
 .ol-msg{color:var(--ink-dim); margin:0; font-size:.9rem; line-height:1.5}
 .ol-actions{display:flex; flex-direction:column; gap:8px}
 
+
+/* sesli sohbet */
+.voice-btn{display:inline-flex; align-items:center; gap:7px}
+.mic-ico{width:14px; height:14px; flex:none; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='8' y='2' width='8' height='13' rx='4'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0h-2a5 5 0 0 1-10 0z'/%3E%3Crect x='11' y='18' width='2' height='4'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='8' y='2' width='8' height='13' rx='4'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0h-2a5 5 0 0 1-10 0z'/%3E%3Crect x='11' y='18' width='2' height='4'/%3E%3C/svg%3E") center/contain no-repeat}
+.voice-btn[aria-pressed="true"]{background:linear-gradient(var(--ok),#5fb37d); color:#0f2a19; border-color:#a8e8bd}
+.mic-badge{position:absolute; left:-7px; bottom:-5px; width:22px; height:22px; border-radius:50%; background:var(--ok); color:#0f2a19; display:grid; place-items:center; box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.mic-badge .mic-ico{width:12px; height:12px}
+
 /* ana menü */
 .home{min-height:calc(100vh - 36px); display:flex; align-items:center; justify-content:center; padding-block:20px}
 .home[hidden],#gameView[hidden]{display:none!important}
@@ -424,6 +434,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
       <button class="btn" id="menuBtn">Ana menü</button>
       <button class="btn" id="newBtn">Yeni oyun</button>
       <button class="btn show" id="themeBtn" aria-haspopup="dialog">Masa</button>
+      <button class="btn voice-btn" id="voiceBtn" aria-pressed="false" hidden><span class="mic-ico" aria-hidden="true"></span><span id="voiceTxt">Sesli sohbet</span></button>
     </div>
   </header>
 
@@ -485,6 +496,7 @@ table.sc th{font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; col
         <li><b>Çifte gitmek:</b> <b>Çifte git</b> düğmesine bastıysan ya da el bittiğinde elinde en az bir per ve 4 çift veya 5 çift varsa çifte gitmiş sayılırsın. Eşi olmayan kartların toplanır ve cezan ayrıca 2 ile çarpılır.</li>
         <li><b>Gösterge:</b> ortada açılan kartın aynısı elindeyse, yerden kart çekmeden önce “Göstergeyi göster”e basabilirsin. Kartın değerinin 10 katı kadar ödül alırsın (sinek 8 ise hanene −80 yazılır). Kart çektikten sonra hakkın gider.</li>
         <li><b>Online:</b> masa kurulup 2, 3 ya da 4 kişi dolunca oyun başlar. Her hamle için 45 saniye süre vardır. Süresi dolan ya da bağlantısı kopan oyuncunun yerine bilgisayar oynar ve koltuğunda bot simgesi görünür. Oyuncu geri dönünce koltuğuna oturur.</li>
+        <li><b>Sesli sohbet:</b> online masada üstteki <b>Sesli sohbet</b> düğmesine basınca mikrofonun açılır ve sesli sohbeti açık olan oyuncularla konuşursun. Tekrar basınca kapanır. Sesli sohbette olanların rozetinde yeşil mikrofon görünür.</li>
         <li><b>Eşli oyun:</b> 4 kişiyle oynanır, karşılıklı oturanlar eştir. Biten tarafa teklideki gibi biter yazılır, bitirenin eşine ceza yazılmaz. Diğer taraftaki iki oyuncunun elleri teklideki gibi hesaplanıp toplanır.</li>
         <li>Seçilen el sayısı bitince en düşük toplamı olan kazanır. Deste biterse el berabere biter, kimseye yazılmaz.</li>
         <li>Kart atmak için atmak istediğin karta <b>çift tıkla</b>. Elin bitse bile kart atınca oyun devam eder; okeye dönmek istersen bekleyebilirsin. Bitmek için atacağın kartı seç ve <b>Bit</b> düğmesine bas.</li>
@@ -1143,7 +1155,7 @@ function render(){
     if(i<0){ el.innerHTML=''; continue; }
     const away=!!(S.away&&S.away[i]);
     const avTxt=ONLINE_MODE&&i!==0 ? esc(NAMES[i].slice(0,2).toUpperCase()) : esc(NAMES[i]);
-    el.innerHTML=`<div class="avatar${S.turn===i?' on':''}${away?' away':''}">${avTxt}${away?`<span class="bot-badge" title="Bağlantısı koptu, bilgisayar oynuyor">${BOT_SVG}</span>`:''}${ONLINE_MODE&&S.turn===i&&OL.deadline?'<span class="tmr" id="tmr"></span>':''}</div>
+    el.innerHTML=`<div class="avatar${S.turn===i?' on':''}${away?' away':''}">${avTxt}${away?`<span class="bot-badge" title="Bağlantısı koptu, bilgisayar oynuyor">${BOT_SVG}</span>`:''}${S.voice&&S.voice[i]?'<span class="mic-badge" title="Sesli sohbette"><span class="mic-ico"></span></span>':''}${ONLINE_MODE&&S.turn===i&&OL.deadline?'<span class="tmr" id="tmr"></span>':''}</div>
       <div class="seat-info">${ONLINE_MODE&&i!==0?`<span class="sname">${esc(NAMES[i])}</span>`:''}<span class="spts">${TEAMS?fmtPts(pts[i]+pts[(i+2)%4]):fmtPts(pts[i])}</span>${TEAMS?`<span class="scount">${i===0?'senin tarafın':i===2?'eşin':'rakip taraf'}</span>`:''}
       ${i!==0?`<span class="scount"><i class="mini-back"></i>${S.hands[i].length} kart</span>`:'<span class="scount">senin hanen</span>'}
       ${away?'<span class="scount away-t">bilgisayar oynuyor</span>':''}
@@ -1199,6 +1211,7 @@ function render(){
   cb.disabled=dealing||S.over;
   for(const id of ['sortRun','sortGroup','sortSmart']) document.getElementById(id).disabled=dealing;
   document.getElementById('newBtn').hidden=ONLINE_MODE;
+  document.getElementById('voiceBtn').hidden=!ONLINE_MODE;
   olTick();
 }
 
@@ -1479,14 +1492,17 @@ function olConnect(){
     OL.connected=true; OL.retry=0; setConn('on','Bağlı');
     await olReq('hello',{token:OL.token});
     if(OL.code){
+      if(VOICE.on){ for(const seat of [...VOICE.pcs.keys()]) voiceClose(seat); }
       const r=await olReq('join',{code:OL.code,name:olName()});
       if(r.error){ olSetCode(null); OL.view=null; olRenderLobby(); document.getElementById('olErr').textContent=r.error; if(ONLINE_MODE) leaveOnlineGame(); }
+      else if(VOICE.on) olReq('voice',{on:true});
     }
   };
   ws.onmessage=e=>{
     let m; try{ m=JSON.parse(e.data); }catch(_){ return; }
     if(m.t==='reply'){ const f=OL.pend.get(m.id); if(f){ OL.pend.delete(m.id); f(m.r||{}); } }
     else if(m.t==='state') olOnState(m.v);
+    else if(m.t==='signal') voiceSignal(m.from, m.data);
   };
   ws.onclose=()=>{
     if(OL.ws!==ws) return;
@@ -1553,6 +1569,7 @@ function olRenderLobby(){
 }
 function olOnState(v){
   OL.view=v;
+  setTimeout(()=>voiceSync(v),0);
   if(v.code!==OL.code) olSetCode(v.code);
   OL.deadline = v.round && v.round.timeLeft!=null ? Date.now()+v.round.timeLeft : null;
   if(v.phase==='lobby'){
@@ -1575,6 +1592,7 @@ function enterOnlineGame(){
   window.scrollTo(0,0);
 }
 function leaveOnlineGame(){
+  voiceOff();
   ONLINE_MODE=false; overlayEl.hidden=true;
   const c=offlineCtx; offlineCtx=null;
   if(c){ S=c.S; N=c.N; NAMES=c.NAMES; TEAMS=c.TEAMS; pts=c.pts; handNo=c.handNo; handLimit=c.handLimit; starter=c.starter; gameOver=c.gameOver; }
@@ -1601,6 +1619,7 @@ function olApply(v){
   S.hands=Array.from({length:n},(_,l)=> l===0 ? [...cur,...added] : new Array(v.seats[G(l)].count).fill(null));
   S.discards=Array.from({length:n},(_,l)=>r.discards[G(l)]);
   S.away=Array.from({length:n},(_,l)=>!!v.seats[G(l)].away);
+  S.voice=Array.from({length:n},(_,l)=>!!v.seats[G(l)].voice);
   S.shown=Array.from({length:n},(_,l)=>r.shown[G(l)]);
   S.firstTurn=[r.firstTurn]; S.ciftGo=[r.ciftGo];
   S.over=v.phase!=='play';
@@ -1659,6 +1678,89 @@ function olTick(){
 }
 setInterval(()=>{ if(ONLINE_MODE && !gameView.hidden) olTick(); },250);
 
+
+/* ---------- sesli sohbet ---------- */
+// Ses oyuncular arasında doğrudan gider (WebRTC); sunucu yalnızca bağlantı bilgisini iletir.
+const VOICE={ on:false, stream:null, pcs:new Map(), audios:new Map(), pending:new Map() };
+const ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+function voiceUI(){
+  const b=document.getElementById('voiceBtn');
+  b.setAttribute('aria-pressed', String(VOICE.on));
+  document.getElementById('voiceTxt').textContent= VOICE.on ? 'Sesli sohbeti kapat' : 'Sesli sohbet';
+}
+async function voiceOn(){
+  if(VOICE.on) return;
+  if(!navigator.mediaDevices || !window.RTCPeerConnection){ if(S){ S.msg='<b>Bu tarayıcı sesli sohbeti desteklemiyor.</b>'; render(); } return; }
+  try{ VOICE.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
+  catch(e){ if(S){ S.msg='<b>Mikrofon izni verilmedi.</b> Tarayıcının adres çubuğundaki izinlerden mikrofona izin verip tekrar dene.'; render(); } return; }
+  VOICE.on=true; voiceUI();
+  const r=await olReq('voice',{on:true});
+  if(r.error){ voiceOff(); if(S){ S.msg='<b>'+esc(r.error)+'</b>'; render(); } }
+}
+function voiceOff(){
+  const was=VOICE.on;
+  VOICE.on=false;
+  for(const seat of [...VOICE.pcs.keys()]) voiceClose(seat);
+  if(VOICE.stream){ for(const t of VOICE.stream.getTracks()) t.stop(); VOICE.stream=null; }
+  voiceUI();
+  if(was) olReq('voice',{on:false});
+}
+function voiceClose(seat){
+  const pc=VOICE.pcs.get(seat); if(pc){ try{ pc.close(); }catch(e){} }
+  VOICE.pcs.delete(seat); VOICE.pending.delete(seat);
+  const a=VOICE.audios.get(seat); if(a){ a.srcObject=null; a.remove(); VOICE.audios.delete(seat); }
+}
+function voiceSend(to,data){ olReq('signal',{to,data}); }
+function voicePC(seat){
+  if(VOICE.pcs.has(seat)) return VOICE.pcs.get(seat);
+  const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
+  VOICE.pcs.set(seat,pc);
+  if(VOICE.stream) for(const t of VOICE.stream.getTracks()) pc.addTrack(t,VOICE.stream);
+  pc.onicecandidate=e=>{ if(e.candidate) voiceSend(seat,{type:'ice',candidate:e.candidate}); };
+  pc.ontrack=e=>{
+    let a=VOICE.audios.get(seat);
+    if(!a){ a=document.createElement('audio'); a.autoplay=true; a.setAttribute('playsinline',''); a.hidden=true; document.body.appendChild(a); VOICE.audios.set(seat,a); }
+    a.srcObject=e.streams[0]; const p=a.play(); if(p&&p.catch) p.catch(()=>{});
+  };
+  pc.onconnectionstatechange=()=>{ if(pc.connectionState==='failed'){ voiceClose(seat); if(OL.view) setTimeout(()=>voiceSync(OL.view),1500); } };
+  return pc;
+}
+async function voiceCall(seat){
+  const pc=voicePC(seat);
+  try{ const offer=await pc.createOffer(); await pc.setLocalDescription(offer); voiceSend(seat,{type:'offer',sdp:pc.localDescription}); }catch(e){ voiceClose(seat); }
+}
+async function voiceSignal(from,data){
+  if(!VOICE.on || !data) return;
+  try{
+    if(data.type==='offer'){
+      const pc=voicePC(from);
+      await pc.setRemoteDescription(data.sdp);
+      for(const c of VOICE.pending.get(from)||[]) await pc.addIceCandidate(c).catch(()=>{});
+      VOICE.pending.delete(from);
+      const ans=await pc.createAnswer(); await pc.setLocalDescription(ans);
+      voiceSend(from,{type:'answer',sdp:pc.localDescription});
+    } else if(data.type==='answer'){
+      const pc=VOICE.pcs.get(from); if(!pc) return;
+      await pc.setRemoteDescription(data.sdp);
+      for(const c of VOICE.pending.get(from)||[]) await pc.addIceCandidate(c).catch(()=>{});
+      VOICE.pending.delete(from);
+    } else if(data.type==='ice'){
+      const pc=VOICE.pcs.get(from);
+      if(pc && pc.remoteDescription) await pc.addIceCandidate(data.candidate).catch(()=>{});
+      else { const q=VOICE.pending.get(from)||[]; q.push(data.candidate); VOICE.pending.set(from,q); }
+    }
+  }catch(e){}
+}
+/* masadaki sesli sohbet listesine göre bağlantıları aç ya da kapat */
+function voiceSync(v){
+  if(!VOICE.on || !v || v.you<0) return;
+  const want=new Set();
+  v.seats.forEach((s,i)=>{ if(s && i!==v.you && s.voice && s.connected) want.add(i); });
+  for(const seat of [...VOICE.pcs.keys()]) if(!want.has(seat)) voiceClose(seat);
+  for(const seat of want) if(!VOICE.pcs.has(seat) && v.you<seat) voiceCall(seat);   // küçük koltuk numarası aramayı başlatır
+}
+document.getElementById('voiceBtn').onclick=()=>{ VOICE.on ? voiceOff() : voiceOn(); };
+
 /* olaylar */
 document.getElementById('onlineBtn').onclick=()=>openOnline();
 document.getElementById('olBack').onclick=()=>showHome();
@@ -1686,6 +1788,7 @@ document.getElementById('olStart').onclick=async()=>{
   const r=await olReq('start'); document.getElementById('olErr2').textContent=r.error||'';
 };
 document.getElementById('olLeave').onclick=async()=>{
+  voiceOff();
   await olReq('leave'); olSetCode(null); OL.view=null; olRenderLobby();
 };
 document.getElementById('olCopy').onclick=async()=>{

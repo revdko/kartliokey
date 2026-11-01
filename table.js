@@ -24,6 +24,7 @@ class Table {
     this.msg = 'Oyuncular bekleniyor.';
     this.timer = null;
     this.lastActive = Date.now();
+    this.voice = new Set();                  // sesli sohbeti açık koltuklar
   }
 
   /* ---------- oturma ---------- */
@@ -56,6 +57,7 @@ class Table {
   disconnect(token) {
     const i = this.seatOf(token);
     if (i < 0) return;
+    this.voice.delete(i);
     const s = this.seats[i];
     if (this.phase === 'lobby') {
       this.seats[i] = null;
@@ -72,6 +74,7 @@ class Table {
   leave(token) {
     const i = this.seatOf(token);
     if (i < 0) return;
+    this.voice.delete(i);
     if (this.phase === 'lobby') return this.disconnect(token);
     // oyun sürerken kalkan oyuncunun yerine bilgisayar oynar (geri dönebilir)
     const s = this.seats[i];
@@ -80,6 +83,14 @@ class Table {
     this.msg = `${s.name} masadan kalktı, yerine bilgisayar oynuyor.`;
     if (this.R && this.R.turn === i) this.scheduleTurn();
     this.changed();
+  }
+
+  setVoice(token, on) {
+    const i = this.seatOf(token);
+    if (i < 0) return { error: 'Bu masada oturmuyorsun.' };
+    if (on) this.voice.add(i); else this.voice.delete(i);
+    this.changed();
+    return {};
   }
 
   /* ---------- oyun ---------- */
@@ -325,7 +336,7 @@ class Table {
       phase: this.phase, you: seat, isHost: seat >= 0 && this.seats[seat] && this.seats[seat].token === this.hostToken,
       msg: this.msg, pts: this.pts.slice(),
       seats: this.seats.map((s, i) => s ? {
-        name: s.name, connected: s.connected, away: !s.connected,
+        name: s.name, connected: s.connected, away: !s.connected, voice: this.voice.has(i),
         host: s.token === this.hostToken,
         count: R && this.phase !== 'lobby' ? R.hands[i].length : 0,
       } : null),

@@ -157,6 +157,15 @@ function handle(c, t, p) {
   if (t === 'action') return table.action(c.token, p);
   if (t === 'next') return table.nextRound(c.token);
   if (t === 'leave') { table.leave(c.token); c.code = null; return {}; }
+  if (t === 'voice') return table.setVoice(c.token, !!p.on);
+  if (t === 'signal') {
+    // sesli sohbet bağlantı bilgisini masadaki diğer oyuncuya ilet (ses sunucudan geçmez)
+    const from = table.seatOf(c.token), to = +p.to;
+    const target = table.seats[to];
+    if (from < 0 || !target || !target.token || to === from) return { error: 'Geçersiz hedef.' };
+    for (const x of clients) if (x.code === table.code && x.token === target.token) x.send({ t: 'signal', from, data: p.data });
+    return {};
+  }
   return { error: 'Bilinmeyen istek.' };
 }
 
