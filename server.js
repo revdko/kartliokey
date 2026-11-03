@@ -12,23 +12,27 @@ const { Table } = require(HAS_DIRS ? './game/table' : './table');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC = fs.existsSync(path.join(__dirname, 'public', 'index.html')) ? path.join(__dirname, 'public') : __dirname;
-const FLAT = PUBLIC === __dirname;   // klasörsüz yerleşimde yalnızca index.html sunulur
+const FLAT = PUBLIC === __dirname;   // klasörsüz yerleşimde yalnızca oyun dosyaları sunulur
+const FLAT_OK = new Set(['index.html', 'manifest.json', 'sw.js', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png']);
 // Sayfa başka bir adresten (ör. Netlify) açılıyorsa o adresleri virgülle yazın. Boşsa herkes bağlanabilir.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json' };
 
 /* ---------- statik dosyalar ---------- */
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, 'http://x');
+  let url;
+  try { url = new URL(req.url.replace(/^\/+/, '/'), 'http://x'); } catch (_) { res.writeHead(400); return res.end(); }
   if (url.pathname === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, tables: tables.size, players: clients.size }));
   }
-  let file = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
+  let file; try { file = decodeURIComponent(url.pathname); } catch (_) { res.writeHead(400); return res.end(); }
+  file = path.normalize(file).replace(/^(\.\.[/\\])+/, '');
   if (file.endsWith('/') || file === '\\') file += 'index.html';
-  if (FLAT && path.basename(file) !== 'index.html') { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('Bulunamadı'); }
+  if (FLAT && !FLAT_OK.has(path.basename(file))) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('Bulunamadı'); }
   const full = path.join(PUBLIC, file);
   if (!full.startsWith(PUBLIC)) { res.writeHead(403); return res.end(); }
   fs.readFile(full, (err, data) => {
